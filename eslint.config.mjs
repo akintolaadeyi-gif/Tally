@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The Expo app and the Python speech server have their own tooling.
+    "mobile/**",
+    "speech-server/**",
   ]),
 ]);
 

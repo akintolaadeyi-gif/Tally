@@ -6,7 +6,15 @@ Tally is a voice-first bookkeeper for Nigerian market traders. A trader taps the
 *"Mama Tunde don carry three bag rice, 18k. She go pay Friday."* Tally turns it into a ledger entry, keeps
 track of who owes what, and builds a business record that can later unlock supplier credit and loans.
 
-This is the first working prototype. Everything is stored on the phone (localStorage); there are no accounts yet.
+This is the first working prototype. Everything is stored on the phone; there are no accounts yet.
+
+## What's in this repo
+
+| Folder | What it is |
+| --- | --- |
+| `/` (root) | The Next.js web app **and** the Tally server: `/api/transcribe` (speech) and `/api/parse` (understanding) |
+| `mobile/` | The iOS and Android app (Expo). See `mobile/README.md` |
+| `speech-server/` | NaijaVox 2.0 speech-to-text for Pidgin, Yoruba, Hausa, Igbo and Nigerian English. See `speech-server/README.md` |
 
 ## Screens
 
@@ -34,9 +42,9 @@ or use a tunnel such as `npx localtunnel --port 3000`.
 ## How the voice pipeline works
 
 1. **Speech to text** (`src/lib/speech.ts`, `src/app/api/transcribe/route.ts`)
-   - If `TRANSCRIBE_URL` is set, the app records audio and sends it to that endpoint. The plan is
+   - If `TRANSCRIBE_URL` is set, the app records audio and sends it to Tally's speech server (`speech-server/`), which runs
      [NaijaVox 2.0](https://huggingface.co/Axiveri/NaijaVox-2.0), an open Whisper-based model for Pidgin, Yoruba, Hausa,
-     Igbo and Nigerian English, hosted on a Hugging Face Inference Endpoint.
+     Igbo and Nigerian English.
    - Otherwise it uses the browser's built-in speech recognition set to Nigerian English, which handles a lot of Pidgin
      but not Yoruba.
    - Typing is always available as a fallback.
@@ -59,7 +67,7 @@ or use a tunnel such as `npx localtunnel --port 3000`.
 
 ## Not built yet
 
-- Hosting NaijaVox and testing it on real market recordings (noise, mixing languages in one sentence)
+- Testing NaijaVox on real market recordings (noise, mixing languages in one sentence), then fine-tuning it on Tally's own data
 - Voice-note reminders in the trader's own voice (today the reminder is a prefilled WhatsApp text)
 - Accounts and cloud backup, so the record survives a lost phone and can be shared with a lender with consent
 - Stock levels, and a supplier view
