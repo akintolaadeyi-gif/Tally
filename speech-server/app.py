@@ -38,7 +38,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 dtype = torch.float16 if device == "cuda" else torch.float32
 
 processor = WhisperProcessor.from_pretrained(MODEL_ID)
-model = WhisperForConditionalGeneration.from_pretrained(MODEL_ID, torch_dtype=dtype).to(device).eval()
+model = WhisperForConditionalGeneration.from_pretrained(MODEL_ID, dtype=dtype).to(device).eval()
 tokenizer = processor.tokenizer
 
 

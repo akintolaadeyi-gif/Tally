@@ -1,6 +1,6 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
-transformers==4.57.1
-torch==2.5.1
+# NaijaVox 2.0 was saved with transformers 5; 4.x can't read its tokenizer.
+transformers==5.22.2
+torch==2.15.0
 numpy==2.2.1
-safetensors==0.4.5
