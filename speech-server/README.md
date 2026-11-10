@@ -13,9 +13,16 @@ GET  /health
 `language` is one of `pidgin`, `yoruba`, `hausa`, `igbo`, `nigerian_english`. Telling the model the language
 noticeably improves accuracy, which is why the app lets the trader pick one.
 
-## Easiest way to host it: a Hugging Face Space
+## Free way to test it: Google Colab
 
-1. Create a free account at huggingface.co, then **New Space** → SDK **Docker** → name it e.g. `tally-speech`.
+Hugging Face now charges for Docker Spaces. For testing, open `tally_speech_colab.ipynb` in
+[Google Colab](https://colab.research.google.com) (File → Upload notebook), pick **Runtime → Change runtime type →
+T4 GPU**, then **Run all**. The last cell prints `TRANSCRIBE_URL` and `TRANSCRIBE_TOKEN` for `.env.local`. The address
+changes every time Colab restarts, so this suits testing and demos, not real users.
+
+## Hosting it for real users: a Hugging Face Space (paid)
+
+1. Create an account at huggingface.co (Docker Spaces need a PRO plan), then **New Space** → SDK **Docker** → name it e.g. `tally-speech`.
 2. Upload the three files in this folder (`app.py`, `requirements.txt`, `Dockerfile`) to the Space.
 3. In the Space **Settings**:
    - **Hardware:** the free CPU works for testing but takes several seconds per entry. A small GPU (T4) makes it
