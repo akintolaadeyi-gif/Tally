@@ -77,6 +77,24 @@ def decode_audio(data: bytes) -> np.ndarray:
     return audio[: SAMPLE_RATE * MAX_SECONDS]
 
 
+def normalize(audio: np.ndarray) -> np.ndarray:
+    """Bring quiet recordings up to a normal speaking level.
+
+    Phones sometimes record very quietly (mic covered, phone held far away, iOS input gain).
+    Whisper reads near-silent audio as noise and invents fluent but unrelated sentences,
+    so we raise the peak to about 0.9, removing any DC offset first. Capped at 300x so
+    pure silence doesn't turn into loud hiss.
+    """
+    if audio.size == 0:
+        return audio
+    audio = audio - float(audio.mean())
+    peak = float(np.abs(audio).max())
+    if peak < 1e-5:
+        return audio
+    gain = min(0.9 / peak, 300.0)
+    return (audio * gain).astype(np.float32)
+
+
 def save_last_clip(audio: np.ndarray) -> None:
     """Keep the latest recording as last.wav so you can listen to what the server heard."""
     pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes()
@@ -104,9 +122,11 @@ async def transcribe(request: Request, language: str = "pidgin"):
 
     body = await request.body()
     audio = decode_audio(body)
-    save_last_clip(audio)
     peak = float(np.abs(audio).max()) if audio.size else 0.0
-    print(f"[tally] {language}: {len(body)} bytes, {audio.size / SAMPLE_RATE:.1f} s of audio, peak level {peak:.2f}", flush=True)
+    audio = normalize(audio)
+    save_last_clip(audio)
+    print(f"[tally] {language}: {len(body)} bytes, {audio.size / SAMPLE_RATE:.1f} s of audio, "
+          f"peak level {peak:.3f} (raised to {float(np.abs(audio).max()):.2f})", flush=True)
     if audio.size < SAMPLE_RATE * 0.3:
         return {"text": "", "language": language, "seconds": 0}
 
