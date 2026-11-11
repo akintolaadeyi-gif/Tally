@@ -13,8 +13,12 @@ import type { Draft, EntryType, PaymentMethod } from "@/lib/types";
 
 type Phase = "idle" | "listening" | "working" | "confirm" | "typing";
 
+// One channel is all speech needs. The default preset records stereo from two iPhone mics,
+// and mixing those down can cancel the voice out.
+const VOICE_PRESET = { ...RecordingPresets.HIGH_QUALITY, numberOfChannels: 1 };
+
 export default function RecordScreen() {
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder(VOICE_PRESET);
   const [language, setLanguage] = useLanguage();
   const [phase, setPhase] = useState<Phase>("idle");
   const [heard, setHeard] = useState("");

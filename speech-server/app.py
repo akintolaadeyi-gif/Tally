@@ -66,14 +66,20 @@ def decode_audio(data: bytes) -> np.ndarray:
     with tempfile.NamedTemporaryFile(suffix=".audio") as src:
         src.write(data)
         src.flush()
+        # Decode as two channels and keep the louder one. iPhones record stereo from two
+        # mics, and averaging them into mono can cancel the voice out almost entirely.
         proc = subprocess.run(
             ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", src.name,
-             "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "f32le", "pipe:1"],
+             "-ac", "2", "-ar", str(SAMPLE_RATE), "-f", "f32le", "pipe:1"],
             capture_output=True, check=False,
         )
     if proc.returncode != 0:
         raise HTTPException(400, f"Could not read audio: {proc.stderr.decode()[:200]}")
-    audio = np.frombuffer(proc.stdout, dtype=np.float32)
+    stereo = np.frombuffer(proc.stdout, dtype=np.float32)
+    stereo = stereo[: stereo.size - stereo.size % 2].reshape(-1, 2)
+    levels = np.sqrt((stereo.astype(np.float64) ** 2).mean(axis=0)) if len(stereo) else np.zeros(2)
+    print(f"[tally] channel levels: left {levels[0]:.4f}, right {levels[1]:.4f}", flush=True)
+    audio = np.ascontiguousarray(stereo[:, int(np.argmax(levels))])
     return audio[: SAMPLE_RATE * MAX_SECONDS]
 
 
