@@ -13,7 +13,9 @@ Set API_TOKEN to require "Authorization: Bearer <token>" on /transcribe.
 
 import os
 import subprocess
+import tempfile
 import time
+import wave
 
 import numpy as np
 import torch
@@ -23,6 +25,7 @@ from transformers import WhisperForConditionalGeneration, WhisperProcessor
 MODEL_ID = os.environ.get("MODEL_ID", "Axiveri/NaijaVox-2.0")
 API_TOKEN = os.environ.get("API_TOKEN")
 SAMPLE_RATE = 16_000
+LAST_CLIP = os.environ.get("LAST_CLIP", "last.wav")
 MAX_SECONDS = 30  # Whisper hears 30 seconds at a time; one ledger entry is far shorter.
 
 # Language name -> Whisper language token, as listed on the NaijaVox model card.
@@ -55,16 +58,33 @@ LANG_IDS = {name: token_id(tok) for name, tok in LANG_TOKENS.items()}
 
 
 def decode_audio(data: bytes) -> np.ndarray:
-    """Any container/codec a phone produces -> 16 kHz mono float32, via ffmpeg."""
-    proc = subprocess.run(
-        ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", "pipe:0",
-         "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "f32le", "pipe:1"],
-        input=data, capture_output=True, check=False,
-    )
+    """Any container/codec a phone produces -> 16 kHz mono float32, via ffmpeg.
+
+    The audio goes through a temp file, not a pipe: iPhone .m4a files keep their index
+    at the end, and ffmpeg can't read that properly from a stream.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".audio") as src:
+        src.write(data)
+        src.flush()
+        proc = subprocess.run(
+            ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", src.name,
+             "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "f32le", "pipe:1"],
+            capture_output=True, check=False,
+        )
     if proc.returncode != 0:
         raise HTTPException(400, f"Could not read audio: {proc.stderr.decode()[:200]}")
     audio = np.frombuffer(proc.stdout, dtype=np.float32)
     return audio[: SAMPLE_RATE * MAX_SECONDS]
+
+
+def save_last_clip(audio: np.ndarray) -> None:
+    """Keep the latest recording as last.wav so you can listen to what the server heard."""
+    pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes()
+    with wave.open(LAST_CLIP, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SAMPLE_RATE)
+        w.writeframes(pcm)
 
 
 app = FastAPI(title="Tally speech server")
@@ -82,7 +102,11 @@ async def transcribe(request: Request, language: str = "pidgin"):
     if language not in LANG_IDS:
         raise HTTPException(400, f"language must be one of {sorted(LANG_IDS)}")
 
-    audio = decode_audio(await request.body())
+    body = await request.body()
+    audio = decode_audio(body)
+    save_last_clip(audio)
+    peak = float(np.abs(audio).max()) if audio.size else 0.0
+    print(f"[tally] {language}: {len(body)} bytes, {audio.size / SAMPLE_RATE:.1f} s of audio, peak level {peak:.2f}", flush=True)
     if audio.size < SAMPLE_RATE * 0.3:
         return {"text": "", "language": language, "seconds": 0}
 
@@ -92,4 +116,5 @@ async def transcribe(request: Request, language: str = "pidgin"):
     with torch.inference_mode():
         out = model.generate(features.to(device, dtype), decoder_input_ids=prompt, max_new_tokens=440)
     text = tokenizer.decode(out[0], skip_special_tokens=True).strip()
+    print(f"[tally] heard: {text!r}", flush=True)
     return {"text": text, "language": language, "seconds": round(time.time() - started, 2)}
