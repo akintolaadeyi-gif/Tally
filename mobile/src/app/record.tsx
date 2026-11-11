@@ -17,6 +17,27 @@ type Phase = "idle" | "listening" | "working" | "confirm" | "typing";
 // and mixing those down can cancel the voice out.
 const VOICE_PRESET = { ...RecordingPresets.HIGH_QUALITY, numberOfChannels: 1 };
 
+type Recorder = ReturnType<typeof useAudioRecorder>;
+
+/**
+ * When a Bluetooth speaker, earpiece or car kit is connected, phones record through ITS mic,
+ * which may be across the room. Switch to the phone's own mic and tell the trader.
+ */
+async function preferPhoneMic(recorder: Recorder): Promise<string | null> {
+  try {
+    const current = await recorder.getCurrentInput();
+    if (!/bluetooth|car/i.test(current.type)) return null;
+    const builtIn = recorder.getAvailableInputs().find((i) => /builtin/i.test(i.type));
+    if (builtIn) {
+      recorder.setInput(builtIn.uid);
+      return `${current.name} is connected, so I'm using your phone's own mic. Speak close to your phone.`;
+    }
+    return `I'm recording through ${current.name}. If it's far from you, disconnect it or move closer to it.`;
+  } catch {
+    return null; // Not every phone reports its inputs; record as normal.
+  }
+}
+
 export default function RecordScreen() {
   const recorder = useAudioRecorder(VOICE_PRESET);
   const [language, setLanguage] = useLanguage();
@@ -25,6 +46,7 @@ export default function RecordScreen() {
   const [typed, setTyped] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [micNote, setMicNote] = useState<string | null>(null);
 
   async function start() {
     setError(null);
@@ -36,6 +58,7 @@ export default function RecordScreen() {
     }
     await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
     await recorder.prepareToRecordAsync();
+    setMicNote(await preferPhoneMic(recorder));
     recorder.record();
     setPhase("listening");
   }
@@ -232,6 +255,11 @@ export default function RecordScreen() {
           {listening ? "Say what you sold, to who, how much, and how they paid." : "Example: “Mama Tunde don carry three bag rice, 18k. She go pay Friday.”"}
         </Text>
       </View>
+      {micNote && (
+        <Text style={st.note} accessibilityRole="alert">
+          {micNote}
+        </Text>
+      )}
       {error && <Text style={st.error}>{error}</Text>}
     </Screen>
   );
@@ -264,6 +292,7 @@ const st = StyleSheet.create({
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.green },
   mic: { width: 88, height: 88, borderRadius: 44, backgroundColor: c.green, alignItems: "center", justifyContent: "center", shadowColor: c.green, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   error: { backgroundColor: c.overdueBg, color: c.overdueInk, borderRadius: 12, padding: 14, fontFamily: f.regular, fontSize: 14 },
+  note: { backgroundColor: c.amberBg, color: c.amberInk, borderRadius: 12, padding: 14, fontFamily: f.regular, fontSize: 14, lineHeight: 20 },
   warn: { color: c.overdue, fontFamily: f.semibold, fontSize: 13 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingVertical: 10, minHeight: 52 },
   rowLabel: { flexShrink: 0, fontFamily: f.regular, fontSize: 14, color: c.muted },

@@ -13,7 +13,14 @@ GET  /health
 `language` is one of `pidgin`, `yoruba`, `hausa`, `igbo`, `nigerian_english`. Telling the model the language
 noticeably improves accuracy, which is why the app lets the trader pick one.
 
-## Free way to test it: Google Colab
+## Permanent home: Modal (recommended)
+
+[Modal](https://modal.com) runs the server on a GPU only while it's transcribing, and gives it a fixed address.
+Its free monthly credit covers testing and small pilots. See `modal_app.py` for the steps:
+`pip3 install modal`, `modal setup`, `modal secret create tally-speech API_TOKEN=...`, then
+`modal deploy modal_app.py`. It sleeps after 10 idle minutes, so the first entry after a break is slower.
+
+## Free way to test it: Google Colab or Kaggle
 
 Hugging Face now charges for Docker Spaces. For testing, open `tally_speech_colab.ipynb` in
 [Google Colab](https://colab.research.google.com) (File → Upload notebook), pick **Runtime → Change runtime type →
