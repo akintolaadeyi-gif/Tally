@@ -3,19 +3,16 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { Button, EntryRow, MicIcon, s } from "@/components/ui";
 import { naira } from "@/lib/format";
+import { greeting } from "@/lib/greeting";
 import { todaySummary } from "@/lib/ledger";
 import { sampleEntries } from "@/lib/sample";
+import { useLanguage } from "@/lib/settings";
 import { replaceAll, useEntries } from "@/lib/store";
 import { c, f } from "@/lib/theme";
 
-function greeting(h = new Date().getHours()) {
-  if (h < 12) return "Ẹ káàárọ̀";
-  if (h < 16) return "Ẹ káàsán";
-  return "Ẹ kúrọ̀lẹ́";
-}
-
 export default function Home() {
   const entries = useEntries();
+  const [language] = useLanguage();
   const today = todaySummary(entries);
   const recent = entries.slice(0, 3);
   const dateLabel = new Date().toLocaleDateString("en-NG", { weekday: "long", day: "numeric", month: "short" });
@@ -39,7 +36,7 @@ export default function Home() {
     >
       <View style={{ gap: 2 }}>
         <Text style={s.muted}>{dateLabel}</Text>
-        <Text style={st.greeting} accessibilityRole="header">{greeting()}</Text>
+        <Text style={st.greeting} accessibilityRole="header">{greeting(language)}</Text>
       </View>
 
       <View style={st.hero} accessibilityLabel={`Today's sales ${naira(today.total)}`}>
